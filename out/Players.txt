@@ -1,6 +1,3 @@
 <ID>   <NAME>   {<PREV PAIRED ID'S>}   <SCORE>   {{<TIME RANGE 1 FOR MON, TIME RANGE 2 FOR MON, ...} {TIME RANGE 1 FOR TUE, ...} ...}
 
 { {} {} {} {} {} {} }
-
-
-
