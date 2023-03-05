@@ -26,9 +26,25 @@ int numLength(int num)
 }
 
 
-int getMagnitude(uint64_t num)
+int BSF(uint64_t x)
 {
-	// TODO: implement
+	if (x == 0)
+		return -1;
+	// isolates smallest bit
+	x = x & -x;
+
+	int count = 0;
+	if ((num & 0xffff0000) != 0)
+		count += 16;
+	if ((num & 0xff00ff00) != 0)
+		count += 8;
+	if ((num & 0xf0f0f0f0) != 0)
+		count += 4;
+	if ((num & 0xcccccccc) != 0)
+		count += 2;
+	if ((num & 0xaaaaaaaa) != 0)
+		count += 1;
+	return count;
 }
 
 

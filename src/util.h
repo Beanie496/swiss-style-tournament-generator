@@ -9,12 +9,11 @@
 #define TODIGIT(c)            ((c) - '0')
 #define MAX(a, b)             ((a) > (b) ? (a) : (b))
 #define MIN(a, b)             ((a) < (b) ? (a) : (b))
-#define BSF(n)                ((n) & -(n))
 #define MAXTOKEN              100
 
 int numInArr(int *array, int length, int num);
 int numLength(int num);
-int getMagnitude(uint64_t num);
+uint64_t BSF(uint64_t x);
 int getNumTimeRanges(Player *player);
 void setMinuteBits(uint64_t times[DAYS_IN_WEEK][HOURS_IN_DAY], int day, int startHour, int endHour, int startMinute, int endMinute);
 int getNextRange(uint64_t *p1times, uint64_t *p2Times, float *startTime, float *endTime);
