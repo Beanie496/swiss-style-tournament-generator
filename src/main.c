@@ -9,27 +9,11 @@
 #include <ctype.h>
 #include <stdint.h>
 
+#include "misc.h"
 #include "util.h"
+#include "files.h"
 
-#define MINUTES_IN_HOUR       60
-#define HOURS_IN_DAY          24
-#define DAYS_IN_WEEK          7
 #define SLOTS                 MINUTES_IN_HOUR
-#define MAXTOKEN              100
-#define MAXLINE               1000
-
-typedef struct {
-    int id;
-	char* name;
-	int prevPlayedNum;
-	int *prevPlayed;
-	float score;
-	// this represents the times they're available for each minute of the day.
-	// 1 bit is 1 minute
-	uint64_t times[DAYS_IN_WEEK][HOURS_IN_DAY];
-	unsigned int paired : 1;
-	char *comment;
-} Player;
 
 typedef struct {
 	// player 1, player 2
@@ -37,34 +21,6 @@ typedef struct {
 	float time;
 	unsigned int isEarliest : 1;
 } Pairing;
-
-enum tokens {
-	C_START_BRACKET,
-	C_END_BRACKET,
-	COLON,
-	COMMA,
-	DASH,
-	DOT,
-	HASHTAG,
-	NUMBER,
-	STRING,
-	UNDEFINED,
-};
-
-enum errors {
-	// starting at 1 because an axit code of 0 is no error
-	EXPECTED_COLON = 01,
-	EXPECTED_COMMA,
-	EXPECTED_CURLY_BRACKET,
-	EXPECTED_DASH,
-	EXPECTED_DECIMAL,
-	EXPECTED_DOT,
-	EXPECTED_HALF,
-	EXPECTED_NUMBER,
-	EXPECTED_SINGLE_DIGIT,
-	EXPECTED_STRING,
-	TOO_MANY_DAYS,
-};
 
 enum daysOfWeek {
 	MONDAY,
@@ -76,11 +32,12 @@ enum daysOfWeek {
 	SUNDAY,
 };
 
-// Using this many global variables is not something I take lightly.
-// However, there are a _lot_ of shared variables that many functions use,
-// and I don't want to use about 9 parameters for some functions
-char token[MAXTOKEN];
-int tokenLength, tokenType, numToken;
+/* Using this many global variables is not something I take lightly.
+ * However, there are a _lot_ of shared variables that many functions use,
+ * and I don't want to use about 9 parameters for some functions
+ */
+Player *players;
+int totalPlayers, longestName, longestPlayerID;
 // inclusive maximum point difference between opponents that can be paired
 float maxPointDif;
 // the earliest time a match can take place
@@ -89,40 +46,21 @@ float earliestTime;
 int minTimeDif;
 // 0: monday, 6: sunday
 int dayOfWeek;
-int unpairedPlayers, totalPlayers, longestName, longestPlayerID;
+int unpairedPlayers, longestName;
 int isVisual;
-Player *players;
-FILE *fp;
 
 void handleArgs(int argc, char *argv[]);
-void readInPlayers(void);
 void pairPlayers(void);
 Pairing *matchPlayer(Pairing *pairings, int *size, int p1Idx);
 // returns 0 if succesful; 1 otherwise
-int getNextRange(uint64_t *p1times, uint64_t *p2Times, float *startTime, float *endTime);
 int canPairPlayer(Pairing *pairings, int *size, int p1Idx, int search, float startTime, float endTime, float minHourDif);
-void getID(int playerIdx);
-void getName(int playerIdx);
-void getPrevPairedPlayers(int playerIdx);
-void getScore(int playerIdx);
-void getTimes(int playerIdx);
-void getDayTimes(uint64_t times[DAYS_IN_WEEK][HOURS_IN_DAY], int day);
-void getDayTime(uint64_t times[DAYS_IN_WEEK][HOURS_IN_DAY], int day);
-void setMinuteBits(uint64_t times[DAYS_IN_WEEK][HOURS_IN_DAY], int day, int startHour, int endHour, int startMinute, int endMinute);
 void addPairedPlayer(Player *player1, Player *player2);
 void printPlayers(void);
 void printVisualTimes(Player *player);
-void updateFile();
-void writeLine(FILE *updatedPlayers, Player *player, int mostPairedPlayers, int mostTimeRanges);
-int writePrevPairedIDs(FILE *updatedPlayers, Player *player, int mostPairedPlayers);
-void writeAllTimes(FILE *updatedPlayers, Player *player, int mostTimeRanges);
-int getNumTimeRanges(Player *player);
 void printPairings(Pairing *pairings, int size);
-void printError(int errorCode);
 void sortPlayers(void);
 // Time (as a float) TO Token
 char *ttot(float timeFloat);
-int getToken(FILE* file);
 void swap(Player *player1, Player *player2);
 void freePlayerList(void);
 int haveFought(Player p1, Player p2);
@@ -132,7 +70,6 @@ int main(int argc, char *argv[])
 {
 	totalPlayers = 0;
 	longestName = 0;
-	fp = fopen("Players.txt", "r");
 
 	// defaults
 	dayOfWeek = SATURDAY;
@@ -234,54 +171,6 @@ void handleArgs(int argc, char *argv[])
 	}
 }
 
-void readInPlayers()
-{
-	int playerIdx = 0;
-	int isEOF = 0;
-	int i;
-	char temp;
-	char tempStr[MAXLINE];
-	players = malloc(0);
-
-
-	while (!isEOF) {
-		// this skips over comments
-		while (getToken(fp) == HASHTAG)
-			while (fgetc(fp) != '\n')
-				;
-		if (tokenType == EOF)
-			break;
-
-
-		players = realloc(players, sizeof(Player) * (playerIdx + 1));
-
-		getID(playerIdx);
-		getName(playerIdx);
-		getPrevPairedPlayers(playerIdx);
-		getScore(playerIdx);
-		getTimes(playerIdx);
-
-		// saves the rest of the line as a comment
-		for (i = 0; (temp = fgetc(fp)) != '\n'; i++)
-			tempStr[i] = temp;
-		tempStr[i++] = '\0';
-		players[playerIdx].comment = malloc(i * sizeof (char));
-		strcpy(players[playerIdx].comment, tempStr);
-
-		playerIdx++;
-
-		if (temp == EOF)
-			isEOF = 1;
-		else
-			fseek(fp, -1, SEEK_CUR);
-	}
-	fclose(fp);
-
-	// the highest ID is one fewer than the number of players
-	longestPlayerID = numLength(playerIdx - 1);
-	totalPlayers = playerIdx;
-}
-
 
 void pairPlayers()
 {
@@ -302,15 +191,16 @@ void pairPlayers()
 	free(pairings);
 	
 	printf("Unpaired players: ");
-	if (unpairedPlayers == 0)
-		printf("None");
-	else
-		for (int i = 0; i < totalPlayers; i++)
-			if (players[i].paired == 0) {
-				printf("%s (id: %d)", players[i].name, players[i].id);
-				if (--unpairedPlayers > 0)
-					printf(", ");
-			}
+	if (unpairedPlayers == 0) {
+		printf("None\n");
+		return;
+	}
+	for (int i = 0; i < totalPlayers; i++)
+		if (players[i].paired == 0) {
+			printf("%s (id: %d)", players[i].name, players[i].id);
+			if (--unpairedPlayers > 0)
+				printf(", ");
+		}
 	printf("\n");
 	
 	return;
@@ -319,7 +209,7 @@ void pairPlayers()
 
 Pairing *matchPlayer(Pairing *pairings, int *size, int p1Idx)
 {
-	float startTime, endTime;
+	float startTime = 0.0, endTime = 0.0;
 	const float minHourDif = (float)minTimeDif / (float)MINUTES_IN_HOUR;
 
 	for (int search = p1Idx + 1; search < totalPlayers; search++) {
@@ -336,7 +226,7 @@ Pairing *matchPlayer(Pairing *pairings, int *size, int p1Idx)
 				|| haveFought(players[p1Idx], players[search]))
 			continue;
 
-		while (!getNextRange(players[p1Idx].times[dayOfWeek],
+		while (getNextRange(players[p1Idx].times[dayOfWeek],
 					players[search].times[dayOfWeek],
 					&startTime, &endTime))
 			if (canPairPlayer(pairings, size, p1Idx, search, startTime, endTime, minHourDif))
@@ -344,22 +234,6 @@ Pairing *matchPlayer(Pairing *pairings, int *size, int p1Idx)
 	}
 
 	return pairings;
-}
-
-
-// returns 0 if succesful; 1 otherwise
-int getNextRange(uint64_t *p1times, uint64_t *p2Times, float *startTime, float *endTime)
-{
-	// TODO:
-	// bits: 000010111111111001110111111111
-	// bits: 001111111110001101111111111000
-	// ^ get the length and start pos of each of
-	// the intersecting bits, one by one
-
-	for (int hour = 0; hour < HOURS_IN_DAY; hour++) {
-		
-	}
-	return 0;
 }
 
 
@@ -387,170 +261,6 @@ int canPairPlayer(Pairing *pairings, int *size, int p1Idx, int search, float sta
 	}
 
 	return 0;
-}
-
-
-void getID(int playerIdx)
-{
-	if (tokenType != NUMBER) {
-		fprintf(stderr, "Warning: Player ID not given. Defaulting to ID of %d.\n", playerIdx);
-		players[playerIdx].id = playerIdx;
-	} else {
-		players[playerIdx].id = numToken;
-	}
-}
-
-
-void getName(int playerIdx)
-{
-	if (getToken(fp) != STRING)
-		printError(EXPECTED_STRING);
-	players[playerIdx].name = malloc(sizeof(char) * tokenLength);
-	if (tokenLength > longestName)
-		longestName = tokenLength;
-	strcpy(players[playerIdx].name, token);
-}
-
-
-void getPrevPairedPlayers(int playerIdx)
-{
-	int size = 0;
-	if (getToken(fp) != C_START_BRACKET) {
-		printError(EXPECTED_CURLY_BRACKET);
-	}
-	if (getToken(fp) != C_END_BRACKET) {
-		while (tokenType != EOF) {
-			if (tokenType == NUMBER) {
-				if (size == 0)
-					players[playerIdx].prevPlayed = malloc(++size);				
-				else
-					players[playerIdx].prevPlayed = realloc(players[playerIdx].prevPlayed, ++size);
-				players[playerIdx].prevPlayed[size - 1] = numToken;
-			} else {
-				printError(EXPECTED_NUMBER);
-			}
-			if (getToken(fp) == C_END_BRACKET)
-				break;
-			if (tokenType != COMMA)
-				printError(EXPECTED_COMMA);
-			getToken(fp);
-		}
-	} else {
-		players[playerIdx].prevPlayed = NULL;
-	}
-	players[playerIdx].prevPlayedNum = size;
-}
-
-
-void getScore(int playerIdx)
-{
-	if (getToken(fp) != NUMBER)
-		printError(EXPECTED_NUMBER);
-	players[playerIdx].score = (float)numToken;
-	if (getToken(fp) != DOT)
-		printError(EXPECTED_DOT);
-	if (getToken(fp) != NUMBER)
-		printError(EXPECTED_DECIMAL);
-	if (tokenLength != 1)
-		printError(EXPECTED_SINGLE_DIGIT);
-	if (numToken != 5 && numToken != 0)
-		printError(EXPECTED_HALF);
-	players[playerIdx].score += (float)numToken / 10.0;
-}
-
-
-void getTimes(int playerIdx)
-{
-	int day = 0;
-
-	for (int i = 0; i < DAYS_IN_WEEK; i++)
-		for (int j = 0; j < HOURS_IN_DAY; j++)
-			players[playerIdx].times[i][j] = 0;
-
-	/* Loop through each day of the week:
-	 *   Loop through each range of each day:
-	 *     Set the relevant minutes
-	 */
-
-	if (getToken(fp) != C_START_BRACKET)
-		printError(EXPECTED_CURLY_BRACKET);
-
-	while (day < DAYS_IN_WEEK)
-		getDayTimes(players[playerIdx].times, day++);
-
-	if (getToken(fp) != C_END_BRACKET)
-		printError(EXPECTED_CURLY_BRACKET);
-}
-
-
-void getDayTimes(uint64_t times[DAYS_IN_WEEK][HOURS_IN_DAY], int day)
-{
-	if (getToken(fp) != C_START_BRACKET)
-		printError(EXPECTED_CURLY_BRACKET);
-
-	// if the list of times is empty, there's nothing to be done
-	if (getToken(fp) == C_END_BRACKET)
-		return;
-
-	do {
-		getDayTime(times, day);
-	} while (getToken(fp) == COMMA);
-}
-
-
-void getDayTime(uint64_t times[DAYS_IN_WEEK][HOURS_IN_DAY], int day)
-{
-	int startHour, endHour;
-	int startMinute, endMinute;
-
-	if (tokenType != NUMBER)
-		printError(EXPECTED_NUMBER);
-	startHour = numToken;
-
-	if (getToken(fp) != COLON)
-		printError(EXPECTED_NUMBER);
-
-	if (getToken(fp) != NUMBER)
-		printError(EXPECTED_NUMBER);
-	startMinute = numToken;
-
-	if (getToken(fp) != DASH)
-		printError(EXPECTED_DASH);
-
-	if (getToken(fp) != NUMBER)
-		printError(EXPECTED_NUMBER);
-	endHour = numToken;
-
-	if (getToken(fp) != COLON)
-		printError(EXPECTED_NUMBER);
-
-	if (getToken(fp) != NUMBER)
-		printError(EXPECTED_NUMBER);
-	endMinute = numToken;
-
-	setMinuteBits(times, day, startHour, endHour, startMinute, endMinute);
-}
-
-
-void setMinuteBits(uint64_t times[DAYS_IN_WEEK][HOURS_IN_DAY], int day, int startHour, int endHour, int startMinute, int endMinute)
-{
-	if (startHour < endHour) {
-		// sets a row of bits from startMinute to MINUTES_IN_HOUR:
-		// - gets a row of 1's
-		// - left-shifts it by the difference in times
-		// - NOTs it to get a row of 1's from 0 to the difference
-		// - left-shifts it by startMinute to get a row of 1's from
-		//   startMinute to MINUTES_IN_HOUR
-		times[day][startHour] = ~(~(uint64_t)0 << (MINUTES_IN_HOUR - startMinute)) << startMinute;
-
-		while (++startHour < endHour)
-			// row of 1's from 0 to MINUTES_IN_HOUR
-			times[day][startHour] = ~(~(uint64_t)0 << MINUTES_IN_HOUR);
-
-		startMinute = 0;
-	}
-
-	times[day][endHour] = ~(~0 << (endMinute - startMinute)) << startMinute;
 }
 
 
@@ -607,43 +317,6 @@ void printVisualTimes(Player player[])
 }
 
 
-void updateFile()
-{
-	int mostPairedPlayers = 0;
-	int numTimeRanges = 0;
-	FILE *updatedPlayers = fopen("newPlayerList.txt", "w+");
-
-	// this is to align nicely the data entries that come
-	// after the previously paired players list
-	for (int i = 0; i < totalPlayers; i++) {
-		int playerTimeRanges = getNumTimeRanges(&players[i]);
-		if (players[i].prevPlayedNum > mostPairedPlayers)
-			mostPairedPlayers = players[i].prevPlayedNum;
-		if (playerTimeRanges > numTimeRanges)
-			numTimeRanges = playerTimeRanges;
-	}
-
-	for (int i = 0; i < totalPlayers; i++)
-		writeLine(updatedPlayers, &players[i], mostPairedPlayers, numTimeRanges);
-
-	fclose(updatedPlayers);
-}
-
-
-void writeLine(FILE *updatedPlayers, Player *player, int mostPairedPlayers, int mostTimeRanges)
-{
-	int spaces;
-
-	// ID and name
-	fprintf(updatedPlayers, "%-3d %*s", player->id, -longestName, player->name);
-	spaces = writePrevPairedIDs(updatedPlayers, player, mostPairedPlayers);
-	// player score
-	fprintf(updatedPlayers, "%*.1f", spaces, player->score);
-	writeAllTimes(updatedPlayers, player, mostTimeRanges);
-	fprintf(updatedPlayers, "   %s\n", player->comment);
-}
-
-
 void printPairings(Pairing *pairings, int size)
 {
 	int hours, minutes;
@@ -673,111 +346,6 @@ void printPairings(Pairing *pairings, int size)
 	}
 	for (int match = 0; match < size; match++)
 		printf("id: %-2d - id: %-2d\n", pairings[match].p1->id, pairings[match].p2->id);
-}
-
-
-int writePrevPairedIDs(FILE *updatedPlayers, Player *player, int mostPairedPlayers)
-{
-	int spaces;
-	// for alignment
-	int currentPairedPlayers = 0;
-
-	fprintf(updatedPlayers, " {");
-	for (int i = 0; i < player->prevPlayedNum; i++) {
-		currentPairedPlayers++;
-		fprintf(updatedPlayers, "%*d", -longestPlayerID, player->prevPlayed[i]);
-		if (i != players[i].prevPlayedNum - 1)
-			fprintf(updatedPlayers, ", ");
-	}
-	spaces = (mostPairedPlayers - currentPairedPlayers) * longestPlayerID;
-	// this accounts for the commas
-	spaces += (mostPairedPlayers - currentPairedPlayers) * 2;
-	// 0 and 1 paired players both have 0 commas
-	if (currentPairedPlayers == 0)
-		spaces--;
-	// 2 for at least 2 spaces; 3 to align the player's score
-	spaces += 2 + 3;
-	fprintf(updatedPlayers, "}");
-
-	return spaces;
-}
-
-
-void writeAllTimes(FILE *updatedPlayers, Player *player, int mostTimeRanges)
-{
-	// TODO: make this print the times properly
-	fprintf(updatedPlayers, "    {");
-	for (int i = 0; i < DAYS_IN_WEEK; i++) {
-		fprintf(updatedPlayers, " {");
-		for (int j = 0; j < HOURS_IN_DAY; j++) {
-			for (int k = 0; k < MINUTES_IN_HOUR; k++) {
-			}
-
-		}
-		fprintf(updatedPlayers, "}");
-		if (i != DAYS_IN_WEEK - 1)
-			fprintf(updatedPlayers, ",");
-	}
-}
-
-
-int getNumTimeRanges(Player *player)
-{
-
-}
-
-
-void printError(int errorCode)
-{
-	switch (errorCode) {
-		case EXPECTED_COLON:
-			fprintf(stderr, "ERROR %d: Expected colon\n", errorCode);
-			exit(errorCode);
-
-		case EXPECTED_COMMA:
-			fprintf(stderr, "ERROR %d: Expected comma\n", errorCode);
-			exit(errorCode);
-
-		case EXPECTED_CURLY_BRACKET:
-			fprintf(stderr, "ERROR %d: Expected curly bracket\n", errorCode);
-			exit(errorCode);
-
-		case EXPECTED_DASH:
-			fprintf(stderr, "ERROR %d: Expected dash\n", errorCode);
-			exit(errorCode);
-			
-		case EXPECTED_DECIMAL:
-			fprintf(stderr, "ERROR %d: Expected decimal\n", errorCode);
-			exit(errorCode);
-			
-		case EXPECTED_DOT:
-			fprintf(stderr, "ERROR %d: Expected dot\n", errorCode);
-			exit(errorCode);
-			
-		case EXPECTED_HALF:
-			fprintf(stderr, "ERROR %d: Expected .0 or .5\n", errorCode);
-			exit(errorCode);
-			
-		case EXPECTED_NUMBER:
-			fprintf(stderr, "ERROR %d: Expected number\n", errorCode);
-			exit(errorCode);
-			
-		case EXPECTED_SINGLE_DIGIT:
-			fprintf(stderr, "ERROR %d: Expected single digit\n", errorCode);
-			exit(errorCode);
-			
-		case EXPECTED_STRING:
-			fprintf(stderr, "ERROR %d: Expected string\n", errorCode);
-			exit(errorCode);
-
-		case TOO_MANY_DAYS:
-			fprintf(stderr, "ERROR %d: Too many days of the week given\n", errorCode);
-			exit(errorCode);
-
-		default:
-			fprintf(stderr, "Unknown error code \"%d\"\n", errorCode);
-			exit(errorCode);
-	}
 }
 
 
@@ -819,67 +387,6 @@ char *ttot(float timeFloat)
 	token[5] = '\0';
 	
 	return token;
-}
-
-
-int getToken(FILE *file)
-{
-	char c;
-	while (isspace(c = fgetc(file)))
-		;
-	
-	if (c == EOF)
-		return tokenType = EOF;
-	if (c == '{')
-		return tokenType = C_START_BRACKET;
-	if (c == '}')
-		return tokenType = C_END_BRACKET;
-	if (c == ':')
-		return tokenType = COLON;
-	if (c == ',')
-		return tokenType = COMMA;
-	if (c == '-')
-		return tokenType = DASH;
-	if (c == '.')
-		return tokenType = DOT;
-	if (c == '#')
-		return tokenType = HASHTAG;
-	// 'STRING' is a sequence of alphanumeric characters that doesn't start with a number
-	if (isalpha(c)) {
-		int i = 0;
-		do {
-			token[i++] = c;
-			c = fgetc(file);
-		} while (i < 100 && isalnum(c));
-		
-		if (i == 100) {
-			fprintf(stderr, "ERROR: Maximum name length exceeded\n");
-			token[i = 99] = '\0';
-			while (isalpha(c = fgetc(file)))
-				;
-		} else {
-			token[i] = '\0';
-		}
-		tokenLength = i + 1;
-
-		fseek(fp, -1, SEEK_CUR);
-		return tokenType = STRING;
-	}
-	if (isdigit(c)) {
-		tokenLength = 0;
-		numToken = 0;
-		// convert the number in the file to an actual number
-		do {
-			numToken *= 10;
-			numToken += TODIGIT(c);
-			tokenLength++;
-		} while (isdigit(c = fgetc(file)));
-
-		fseek(fp, -1, SEEK_CUR);
-		return tokenType = NUMBER;
-	}
-
-	return tokenType = UNDEFINED;
 }
 
 

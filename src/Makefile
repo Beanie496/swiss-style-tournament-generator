@@ -1,4 +1,4 @@
-SRC = main.c util.c
+SRC = main.c readfile.c writefile.c util.c
 OBJ = $(SRC:.c=.o)
 CC = cc
 EXE = swissmatchup
