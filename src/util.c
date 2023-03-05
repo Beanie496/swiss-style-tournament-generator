@@ -26,12 +26,12 @@ int numLength(int num)
 }
 
 
-int BSF(uint64_t x)
+int BSF(uint64_t num)
 {
-	if (x == 0)
+	if (num == 0)
 		return -1;
 	// isolates smallest bit
-	x = x & -x;
+	num = num & -num;
 
 	int count = 0;
 	if ((num & 0xffff0000) != 0)
@@ -50,7 +50,7 @@ int BSF(uint64_t x)
 
 int getNumTimeRanges(Player *player)
 {
-	// TODO: implement
+	// TODO: count total time ranges on a given day
 }
 
 
@@ -84,6 +84,9 @@ int getNextRange(uint64_t *p1Times, uint64_t *p2Times, float *startTime, float *
 	// bits: 001111111110001101111111111000
 	// ^ get the length and start pos of each of
 	// the intersecting bits, one by one
+
+	// TODO: this is outdated. Rewrite.
+	/*
 	uint64_t islands;
 	uint64_t boundaries;
 	uint64_t start;
@@ -109,6 +112,7 @@ int getNextRange(uint64_t *p1Times, uint64_t *p2Times, float *startTime, float *
 			*startTime += (float)getMagnitude(start) / 60.0;
 		}
 	}
+	*/
 	return 0;
 }
 

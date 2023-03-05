@@ -56,8 +56,9 @@ Pairing *matchPlayer(Pairing *pairings, int *size, int p1Idx);
 int canPairPlayer(Pairing *pairings, int *size, int p1Idx, int search, float startTime, float endTime, float minHourDif);
 void addPairedPlayer(Player *player1, Player *player2);
 void printPlayers(void);
-void printVisualTimes(Player *player);
+void printTimes(Player player);
 void printPairings(Pairing *pairings, int size);
+void printTime(FILE *stream, int hour, int minute);
 void sortPlayers(void);
 // Time (as a float) TO Token
 char *ttot(float timeFloat);
@@ -287,33 +288,32 @@ void printPlayers()
 	for (int i = 0; i < totalPlayers; i++) {
 		printf("%*s   %.1f", -longestName, players[i].name, players[i].score);
 		if (isVisual)
-			printVisualTimes(&players[i]);
+			printTimes(players[i]);
 		printf("\n");
 	}
 }
 
 
-void printVisualTimes(Player player[])
+void printTimes(Player player)
 {
-	// TODO: fix this function
-	/*
-	printf("   %4.1f - %4.1f   [", player->times[0], player->times[1]);
-	for (float hour = 0.0; hour < (float)HOURS_IN_DAY; hour++) {
-		for (float minute = 0.0; minute < 1.0; minute += 0.25) {
-			if (hour + minute >= player->times[0] && hour + minute < player->times[1])
-				printf("#");
+	// TODO: print the times graphically
+	
+	int count = 0;
+	for (int hour = 0; hour < 24; hour++) {
+		int minute;
+		uint64_t boundaries = player.times[dayOfWeek][hour] & (player.times[dayOfWeek][hour] << 1);
+		while ((minute = BSF(boundaries)) != -1) {
+			count++;
+			boundaries ^= 1ull << minute;
+			if (count == 0)
+				printf("   ");
+			else if (count % 2 == 0)
+				printf(", ");
 			else
-				printf("-");
+				printf(" - ");
+			printTime(stdout, hour, minute);
 		}
-
-		// after hour 11 (at 12:00)
-		if (hour == 11.0)
-			printf("|");
-		else if (hour != 23.0)
-			printf(" ");
 	}
-	printf("]");
-	*/
 }
 
 
@@ -326,13 +326,8 @@ void printPairings(Pairing *pairings, int size)
 		minutes = (pairings[match].time - (int)(pairings[match].time)) * 60.0;
 
 		// it must have 2 digits, even if the first is 0
-		if (hours < 10)
-			printf("0");
-		printf("%d:", hours);
-
-		if (minutes < 10)
-			printf("0");
-		printf("%d: ", minutes);
+		printTime(stdout, hours, minutes);
+		printf(": ");
 
 		printf("%*s - %*s", -longestName, pairings[match].p1->name,
 				-longestName, pairings[match].p2->name);
@@ -346,6 +341,18 @@ void printPairings(Pairing *pairings, int size)
 	}
 	for (int match = 0; match < size; match++)
 		printf("id: %-2d - id: %-2d\n", pairings[match].p1->id, pairings[match].p2->id);
+}
+
+
+void printTime(FILE *stream, int hour, int minute)
+{
+	if (hour < 10)
+		fprintf(stream, "0");
+	fprintf(stream, "%d:", hour);
+
+	if (minute < 10)
+		fprintf(stream, "0");
+	fprintf(stream, "%d: ", minute);
 }
 
 
