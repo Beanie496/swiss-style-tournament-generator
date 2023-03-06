@@ -48,9 +48,22 @@ int BSF(uint64_t num)
 }
 
 
-int getNumTimeRanges(Player *player)
+int PopCnt(uint64_t num)
 {
-	// TODO: count total time ranges on a given day
+	for (int count = 0; num != 0; count++)
+		num &= num - 1;
+	return count;
+}
+
+
+int getNumTimeRanges(Player *player, int day)
+{
+	int total = 0;
+	for (int hour = 0; hour < 23; hour++) {
+		uint64_t time = player->times[day][hour];
+		total += (time & 1) + PopCnt(time ^ (time >> 1)) / 2;
+	}
+	return total;
 }
 
 

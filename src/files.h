@@ -21,5 +21,7 @@ void printError(int errorCode);
 
 extern Player *players;
 extern int totalPlayers, longestName, longestPlayerID;
+extern int dayOfWeek;
+
 
 #endif

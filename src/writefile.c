@@ -14,7 +14,7 @@ void updateFile()
 	// this is to align nicely the data entries that come
 	// after the previously paired players list
 	for (int i = 0; i < totalPlayers; i++) {
-		int playerTimeRanges = getNumTimeRanges(&players[i]);
+		int playerTimeRanges = getNumTimeRanges(&players[i], dayOfWeek);
 		if (players[i].prevPlayedNum > mostPairedPlayers)
 			mostPairedPlayers = players[i].prevPlayedNum;
 		if (playerTimeRanges > numTimeRanges)
