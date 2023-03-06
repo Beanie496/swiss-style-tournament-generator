@@ -46,7 +46,7 @@ float earliestTime;
 int minTimeDif;
 // 0: monday, 6: sunday
 int dayOfWeek;
-int unpairedPlayers, longestName;
+int unpairedPlayers;
 int isVisual;
 
 void handleArgs(int argc, char *argv[]);
