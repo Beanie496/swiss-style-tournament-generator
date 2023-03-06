@@ -52,8 +52,8 @@ int isVisual;
 void handleArgs(int argc, char *argv[]);
 void pairPlayers(void);
 Pairing *matchPlayer(Pairing *pairings, int *size, int p1Idx);
-// returns 0 if succesful; 1 otherwise
-int canPairPlayer(Pairing *pairings, int *size, int p1Idx, int search, float startTime, float endTime, float minHourDif);
+// returns 1 if successful; 1 otherwise
+int pairPlayer(Pairing *pairings, int *size, int p1Idx, int search, float startTime, float endTime, float minHourDif);
 void addPairedPlayer(Player *player1, Player *player2);
 void printPlayers(void);
 void printTimes(Player player);
@@ -230,7 +230,7 @@ Pairing *matchPlayer(Pairing *pairings, int *size, int p1Idx)
 		while (getNextRange(players[p1Idx].times[dayOfWeek],
 					players[search].times[dayOfWeek],
 					&startTime, &endTime))
-			if (canPairPlayer(pairings, size, p1Idx, search, startTime, endTime, minHourDif))
+			if (pairPlayer(pairings, size, p1Idx, search, startTime, endTime, minHourDif))
 				break;
 	}
 
@@ -238,10 +238,11 @@ Pairing *matchPlayer(Pairing *pairings, int *size, int p1Idx)
 }
 
 
-int canPairPlayer(Pairing *pairings, int *size, int p1Idx, int search, float startTime, float endTime, float minHourDif)
+int pairPlayer(Pairing *pairings, int *size, int p1Idx, int search, float startTime, float endTime, float minHourDif)
 {
 	// if the previous match's time is equal to the proposed start time of this one,
 	// buffer it by the minimum amount of time a match needs
+	// TODO: this is outdated. Rework.
 	if (pairings[*size - 1].time == startTime)
 		startTime += minHourDif;
 	
