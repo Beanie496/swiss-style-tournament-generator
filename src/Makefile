@@ -1,6 +1,6 @@
-SRC = main.c readfile.c writefile.c util.c
-OBJ = $(SRC:.c=.o)
-CC = cc
+SRC = main.cpp
+OBJ = $(SRC:.cpp=.o)
+CC = g++
 EXE = swissmatchup
 CFLAGS = -pedantic -Wall -O2
 
@@ -10,6 +10,7 @@ CFLAGS = -pedantic -Wall -O2
 default: all
 
 all: $(EXE)
+	@echo "finished prerequesites of all"
 	cp $(EXE) ../out
 
 help:
@@ -29,4 +30,5 @@ clean:
 	rm -f $(EXE) $(OBJ)
 
 $(EXE): $(OBJ)
+	@echo "finished prerequesites of exe"
 	$(CC) $(CFLAGS) -o $@ $(OBJ)
