@@ -10,7 +10,6 @@ CFLAGS = -pedantic -Wall -O2
 default: all
 
 all: $(EXE)
-	@echo "finished prerequesites of all"
 	cp $(EXE) ../out
 
 help:
