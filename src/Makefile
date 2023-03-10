@@ -1,4 +1,4 @@
-SRC = main.cpp
+SRC = main.cpp readfile.cpp writefile.cpp util.cpp
 OBJ = $(SRC:.cpp=.o)
 CC = g++
 EXE = swissmatchup

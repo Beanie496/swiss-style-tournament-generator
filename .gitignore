@@ -1,3 +1,4 @@
 out/*
 *.o
 swissmatchup
+src/old_files/*
