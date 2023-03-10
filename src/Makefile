@@ -3,6 +3,7 @@ OBJ = $(SRC:.cpp=.o)
 CC = g++
 EXE = swissmatchup
 CFLAGS = -pedantic -Wall -O2
+CXXFLAGS = $(CFLAGS)
 
 
 .PHONY: all help clean
@@ -29,5 +30,4 @@ clean:
 	rm -f $(EXE) $(OBJ)
 
 $(EXE): $(OBJ)
-	@echo "finished prerequesites of exe"
 	$(CC) $(CFLAGS) -o $@ $(OBJ)
