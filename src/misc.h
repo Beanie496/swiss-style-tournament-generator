@@ -1,5 +1,6 @@
 #include <string>
 #include <vector>
+#include <stdint.h>
 
 #ifndef MISC_H
 #define MISC_H
@@ -42,7 +43,7 @@ class Players {
 		// 0: monday, 6: sunday
 		int dayOfWeek;
 		bool isVisual;
-		
+
 		void addPairedPlayer(Player *player1, Player *player2);
 		bool haveFought(Player p1, Player p2);
 		int getNumTimeRanges(Player *player, int day);
@@ -59,6 +60,19 @@ class Players {
 		void swap(Player *player1, Player *player2);
 		void freePlayerList(void);
 };
+
+typedef struct {
+    int id;
+	char* name;
+	int prevPlayedNum;
+	int *prevPlayed;
+	float score;
+	// this represents the times they're available for each minute of the day.
+	// 1 bit is 1 minute
+	uint64_t times[DAYS_IN_WEEK][HOURS_IN_DAY];
+	unsigned int paired : 1;
+	char *comment;
+} Player;
 
 enum tokens {
 	C_START_BRACKET,

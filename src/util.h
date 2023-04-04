@@ -18,4 +18,13 @@ int PopCnt(uint64_t num);
 int getToken(FILE* file);
 void printError(int errorCode);
 
+int getNumTimeRanges(Player *player, int day);
+void setMinuteBits(uint64_t times[DAYS_IN_WEEK][HOURS_IN_DAY], int day, int startHour, int endHour, int startMinute, int endMinute);
+int getNextRange(uint64_t *p1times, uint64_t *p2Times, float *startTime, float *endTime);
+int getToken(FILE* file);
+void printError(int errorCode);
+
+extern char token[];
+extern int tokenLength, tokenType, numToken;
+
 #endif
