@@ -49,7 +49,10 @@ int dayOfWeek;
 int unpairedPlayers;
 int isVisual;
 
+void initGlobalVars();
 void handleArgs(int argc, char *argv[]);
+void handleArg(char *arg, char *nextArg);
+void handleOption(char *arg, char *nextArg);
 void pairPlayers(void);
 Pairing *matchPlayer(Pairing *pairings, int *size, int p1Idx);
 // returns 1 if successful; 1 otherwise
@@ -69,6 +72,21 @@ int haveFought(Player p1, Player p2);
 
 int main(int argc, char *argv[])
 {
+	initGlobalVars();
+	handleArgs(argc, argv);
+	readInPlayers();
+	sortPlayers();
+	printPlayers();
+	pairPlayers();
+	updateFile();
+	freePlayerList();
+
+	return 0;
+}
+
+
+void initGlobalVars()
+{
 	totalPlayers = 0;
 	longestName = 0;
 
@@ -78,19 +96,6 @@ int main(int argc, char *argv[])
 	earliestTime = 12.0;
 	minTimeDif = 30;
 	isVisual = 0;
-
-	handleArgs(argc, argv);
-
-	readInPlayers();
-	sortPlayers();
-	printPlayers();
-	// a gap looks nice
-	printf("\n");
-	pairPlayers();
-	updateFile();
-	freePlayerList();
-
-	return 0;
 }
 
 
@@ -101,74 +106,85 @@ void handleArgs(int argc, char *argv[])
 		exit(0);
 	}
 
-	for (int i = 1; i < argc; i++) {
-		if (argv[i][0] != '-') {
-			fprintf(stderr, "Unknown argument \"%s\"\n", argv[i]);
-			exit(0);
-		}
-		if (argv[i][2] != '\0') {
-			fprintf(stderr, "Unknown argument \"%s\"\n", argv[i]);
-			exit(0);
-		}
-		switch (argv[i][1]) {
-			// day of week
-			case 'd':
-				if (i >= argc - 1)
-					break;
+	for (int i = 1; i < argc; i++)
+		handleArg(argv[i], i < argc - 1 ? argv[i + 1] : NULL);
+}
 
-				i++;
-				if (argv[i][1] != '\0' || TODIGIT(argv[i][0]) > 6) {
-					fprintf(stderr, "Day of week given outside range\n");
-					exit(0);
-				}
-				dayOfWeek = TODIGIT(argv[i][0]);
-				break;
 
-			// max point difference
-			case 'p':
-				if (i >= argc - 1)
-					break;
-				
-				sscanf(argv[++i], "%f", &maxPointDif);
-				break;
-				
-			// earliest time
-			case 'e':
-				if (i >= argc - 1)
-					break;
-				
-				sscanf(argv[++i], "%f", &earliestTime);
-				break;
-				
-			// min time difference
-			case 't':
-				if (i >= argc - 1)
-					break;
-				
-				sscanf(argv[++i], "%d", &minTimeDif);
+void handleArg(char *arg, char *nextArg)
+{
+	if (arg[0] != '-') {
+		fprintf(stderr, "Unknown argument \"%s\"\n", arg);
+		exit(0);
+	}
+	if (arg[2] != '\0') {
+		fprintf(stderr, "Unknown argument \"%s\"\n", arg);
+		exit(0);
+	}
+	handleOption(arg, nextArg);
+}
+
+
+void handleOption(char *arg, char *nextArg)
+{
+	switch (arg[1]) {
+		// day of week
+		case 'd':
+			if (nextArg == NULL)
 				break;
 
-			// print visual times
-			case 'v':
-				isVisual = 1;
+			if (nextArg[1] != '\0' || TODIGIT(nextArg[0]) > 6) {
+				fprintf(stderr,
+					"Day of week given outside range\n");
+				exit(0);
+			}
+			dayOfWeek = TODIGIT(nextArg[0]);
+			break;
+
+		// max point difference
+		case 'p':
+			if (nextArg == NULL)
 				break;
+
+			sscanf(nextArg, "%f", &maxPointDif);
+			break;
+
+		// earliest time
+		case 'e':
+			if (nextArg == NULL)
+				break;
+
+			sscanf(nextArg, "%f", &earliestTime);
+			break;
+
+		// min time difference
+		case 't':
+			if (nextArg == NULL)
+				break;
+
+			sscanf(nextArg, "%d", &minTimeDif);
+			break;
+
+		// print visual times
+		case 'v':
+			isVisual = 1;
+			break;
 			
-			// print help
-			case 'h':
-				printf("Usage: swissmatchup [options]\n"
-				       "Options:\n"
-				       "  -d <day of week>      Set day of week: Mon-Sun = 0-6. Default %d.\n"
-				       "  -p <point difference> Set maximum point difference. Default %.1f.\n"
-				       "  -e <time>             Set earliest time, as a float. 12.5 is 12:30, for example. Default %.1f.\n"
-				       "  -t <time difference>  Set the minimum gap between matchups. Default %d.\n"
-				       "  -v                    Print the times visually.\n",
-						dayOfWeek, maxPointDif, earliestTime, minTimeDif);
-				exit(0);
+		// print help
+		case 'h':
+			printf("Usage: swissmatchup [options]\n"
+			       "Options:\n"
+			       "  -d <day of week>      Set day of week: Mon-Sun = 0-6. Default %d.\n"
+			       "  -p <point difference> Set maximum point difference. Default %.1f.\n"
+			       "  -e <time>             Set earliest time, as a float. 12.5 is 12:30, for example. Default %.1f.\n"
+			       "  -t <time difference>  Set the minimum gap between matchups. Default %d.\n"
+			       "  -v                    Print the times visually.\n",
+					dayOfWeek, maxPointDif, earliestTime, minTimeDif);
+			exit(0);
 
-			default:
-				fprintf(stderr, "unknown argument \"%s\"", argv[i]);
-				exit(0);
-		}
+		default:
+			fprintf(stderr, "unknown argument \"%s\"", arg);
+			exit(0);
 	}
 }
 
@@ -292,6 +308,7 @@ void printPlayers()
 			printTimes(players[i]);
 		printf("\n");
 	}
+	printf("\n");
 }
 
 
