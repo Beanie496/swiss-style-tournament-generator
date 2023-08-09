@@ -35,6 +35,8 @@ enum daysOfWeek {
 /* Using this many global variables is not something I take lightly.
  * However, there are a _lot_ of shared variables that many functions use,
  * and I don't want to use about 9 parameters for some functions
+TODO: have you heard of *structs*? Refactor, idiot. And in any case, you have a
+function with *seven* damn parameters.
  */
 Player *players;
 int totalPlayers, longestName, longestPlayerID;
